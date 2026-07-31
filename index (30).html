@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fake Chat Decoration</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        body { background-color: #0f172a; color: #fff; display: flex; flex-direction: column; align-items: center; padding: 15px; min-height: 100vh; }
+        h2 { margin-bottom: 15px; color: #ec4899; text-align: center; font-size: 24px; }
+
+        .main-container { display: flex; flex-wrap: wrap; gap: 20px; max-width: 1000px; width: 100%; justify-content: center; }
+
+        /* কন্ট্রোল প্যানেল */
+        .control-panel { flex: 1; min-width: 320px; background: #1e293b; padding: 20px; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .control-panel h3 { color: #38bdf8; margin-bottom: 12px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        label { font-size: 12px; color: #94a3b8; display: block; margin-top: 8px; }
+        input, select, textarea { width: 100%; padding: 8px 10px; margin-top: 4px; background: #0f172a; border: 1px solid #334155; color: #fff; border-radius: 6px; font-size: 13px; }
+
+        .btn-add { background: #0284c7; color: white; border: none; padding: 10px; margin-top: 12px; border-radius: 6px; width: 100%; font-weight: bold; cursor: pointer; }
+        .btn-start { background: linear-gradient(135deg, #ec4899, #8b5cf6); color: white; border: none; padding: 12px; margin-top: 15px; border-radius: 25px; width: 100%; font-weight: bold; font-size: 15px; cursor: pointer; box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4); }
+
+        .script-list { margin-top: 12px; max-height: 160px; overflow-y: auto; background: #0f172a; padding: 8px; border-radius: 8px; border: 1px solid #334155; }
+        .script-item { font-size: 12px; padding: 6px; border-bottom: 1px solid #1e293b; color: #cbd5e1; display: flex; justify-content: space-between; align-items: center; }
+        .btn-del { background: #ef4444; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer; font-size: 10px; }
+
+        /* ফেক ফোন চ্যাট স্ক্রিন */
+        .phone-screen { width: 360px; height: 680px; background: #000; border-radius: 30px; border: 4px solid #334155; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.6); position: relative; }
+        
+        /* হেডার */
+        .chat-header { background: #161718; padding: 12px 15px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #262626; z-index: 2; }
+        .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+        .chat-header .title { font-weight: bold; font-size: 15px; color: #fff; }
+        .chat-header .status { font-size: 11px; color: #22c55e; }
+
+        /* চ্যাট বডি */
+        .chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #000; position: relative; }
+
+        /* মাঝখানের বড় প্রোফাইল কার্ড */
+        .center-profile { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 20px 0; text-align: center; }
+        .center-avatar { width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid #ec4899; margin-bottom: 8px; }
+        .center-name { font-size: 16px; font-weight: bold; color: #fff; }
+        .center-sub { font-size: 11px; color: #94a3b8; }
+
+        /* স্টার্ট অ্যানিমেশন */
+        .start-loader { display: none; text-align: center; padding: 10px; font-size: 12px; color: #ec4899; animation: blink 1s infinite alternate; }
+        @keyframes blink { from { opacity: 0.3; } to { opacity: 1; } }
+
+        /* চ্যাট বাবল */
+        .msg-row { display: flex; gap: 8px; align-items: flex-end; width: 100%; }
+        .msg-row.left { justify-content: flex-start; }
+        .msg-row.right { justify-content: flex-end; }
+
+        .msg-avatar { width: 26px; height: 26px; border-radius: 50%; object-fit: cover; }
+
+        .message { max-width: 70%; padding: 10px 14px; border-radius: 18px; font-size: 13px; line-height: 1.4; word-break: break-word; animation: fadeInUp 0.4s ease; }
+        .msg-left { background: #262626; color: #fff; border-bottom-left-radius: 4px; }
+        .msg-right { background: #0084ff; color: #fff; border-bottom-right-radius: 4px; }
+
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ফেক ইনপুট বার */
+        .fake-input-bar { background: #161718; padding: 10px 12px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #262626; }
+        .fake-input-field { flex: 1; background: #262626; border-radius: 20px; padding: 8px 14px; font-size: 12px; color: #8e8e8e; }
+
+        /* বড় ও সুন্দর কিবোর্ড */
+        .dummy-keyboard { background: #18181b; padding: 8px 6px 16px 6px; display: flex; flex-direction: column; gap: 8px; user-select: none; border-top: 1px solid #27272a; }
+        .kb-row { display: flex; justify-content: center; gap: 5px; width: 100%; }
+        .key { background: #27272a; color: #f4f4f5; font-size: 14px; height: 42px; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex: 1; max-width: 34px; box-shadow: 0 2px 3px rgba(0,0,0,0.4); font-weight: 500; }
+        .key-wide { flex: 1.5; max-width: 52px; background: #3f3f46; font-size: 12px; }
+        .key-space { flex: 4; max-width: 160px; background: #27272a; font-size: 12px; color: #a1a1aa; }
+        .key-go { background: #0084ff; color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h2>Fake Chat Decoration</h2>
+
+    <div class="main-container">
+        
+        <div class="control-panel">
+            <h3>১. প্রোফাইল সেটআপ</h3>
+            <div class="grid-2">
+                <div>
+                    <label>পার্টনারের নাম:</label>
+                    <input type="text" id="partnerName" value="My friend" oninput="updateProfiles()">
+                    <label>ছবি (URL/ফাইল):</label>
+                    <input type="file" id="partnerImgFile" accept="image/*" onchange="loadImg(event, 'partner')">
+                </div>
+                <div>
+                    <label>আমার নাম:</label>
+                    <input type="text" id="myName" value="Me" oninput="updateProfiles()">
+                    <label>ছবি (URL/ফাইল):</label>
+                    <input type="file" id="myImgFile" accept="image/*" onchange="loadImg(event, 'me')">
+                </div>
+            </div>
+
+            <h3 style="margin-top:15px;">২. স্ক্রিপ্ট তৈরি</h3>
+            <div class="grid-2">
+                <div>
+                    <label>মেসেজ কোন পাশে দেখাবে?</label>
+                    <select id="msgSide">
+                        <option value="left">বামে (পার্টনার)</option>
+                        <option value="right">ডানে (আমি)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>কার ভয়েসে কথা বলবে?</label>
+                    <select id="voiceGender">
+                        <option value="female">মেয়ে কণ্ঠ 👧</option>
+                        <option value="male">ছেলে কণ্ঠ 👦</option>
+                    </select>
+                </div>
+            </div>
+
+            <label>মেসেজের লেখা:</label>
+            <textarea id="msgText" rows="2" placeholder="এখানে মেসেজ লিখুন..."></textarea>
+
+            <label>কত সেকেন্ড পর উঠবে?</label>
+            <input type="number" id="delayTime" value="3" min="1" max="10">
+
+            <button class="btn-add" onclick="addMessageToScript()">মেসেজ যোগ করুন (+)</button>
+
+            <div class="script-list" id="scriptList">
+                <div style="font-size:11px; color:#64748b; text-align:center;">কোনো মেসেজ যোগ করা হয়নি</div>
+            </div>
+
+            <button class="btn-start" onclick="startChatSimulation()">▶ চ্যাট ও ভয়েস চালু করুন</button>
+        </div>
+
+        <div class="phone-screen">
+            <div class="chat-header">
+                <img id="headerAvatar" class="avatar" src="https://via.placeholder.com/150/ff416c/ffffff?text=Love" alt="Partner">
+                <div>
+                    <div class="title" id="headerName">My friend</div>
+                    <div class="status">● Active now</div>
+                </div>
+            </div>
+
+            <div class="chat-body" id="chatBody">
+                <div class="center-profile" id="centerProfile">
+                    <img id="centerAvatar" class="center-avatar" src="https://via.placeholder.com/150/ff416c/ffffff?text=Love" alt="Partner">
+                    <div class="center-name" id="centerName">My friend</div>
+                    <div class="center-sub">You're connected on Messenger</div>
+                </div>
+                <div class="start-loader" id="startLoader">● Chat session starting...</div>
+            </div>
+
+            <div class="fake-input-bar">
+                <span style="color:#0084ff; font-size:16px;">Aa</span>
+                <div class="fake-input-field">Message...</div>
+                <span style="color:#0084ff; font-size:16px;">❤️😘😎👋🏼</span>
+            </div>
+
+            <div class="dummy-keyboard">
+                <div class="kb-row">
+                    <div class="key">Q</div><div class="key">W</div><div class="key">E</div><div class="key">R</div>
+                    <div class="key">T</div><div class="key">Y</div><div class="key">U</div><div class="key">I</div>
+                    <div class="key">O</div><div class="key">P</div>
+                </div>
+                <div class="kb-row">
+                    <div class="key">A</div><div class="key">S</div><div class="key">D</div><div class="key">F</div>
+                    <div class="key">G</div><div class="key">H</div><div class="key">J</div><div class="key">K</div>
+                    <div class="key">L</div>
+                </div>
+                <div class="kb-row">
+                    <div class="key key-wide">⇧</div><div class="key">Z</div><div class="key">X</div>
+                    <div class="key">C</div><div class="key">V</div><div class="key">B</div>
+                    <div class="key">N</div><div class="key">M</div><div class="key key-wide">⌫</div>
+                </div>
+                <div class="kb-row">
+                    <div class="key key-wide">?123</div><div class="key key-space">space</div><div class="key key-wide key-go">Go</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        let chatScript = [];
+        let partnerImgSrc = "https://via.placeholder.com/150/ff416c/ffffff?text=Love";
+        let myImgSrc = "https://via.placeholder.com/150/0084ff/ffffff?text=Me";
+
+        function updateProfiles() {
+            const pName = document.getElementById('partnerName').value || "My friend";
+            document.getElementById('headerName').innerText = pName;
+            document.getElementById('centerName').innerText = pName;
+        }
+
+        function loadImg(event, who) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    if (who === 'partner') {
+                        partnerImgSrc = e.target.result;
+                        document.getElementById('headerAvatar').src = partnerImgSrc;
+                        document.getElementById('centerAvatar').src = partnerImgSrc;
+                    } else {
+                        myImgSrc = e.target.result;
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function addMessageToScript() {
+            const text = document.getElementById('msgText').value.trim();
+            const side = document.getElementById('msgSide').value;
+            const voice = document.getElementById('voiceGender').value;
+            const delay = parseInt(document.getElementById('delayTime').value) * 1000;
+
+            if (!text) { alert("মেসেজ লিখুন!"); return; }
+
+            chatScript.push({ text, side, voice, delay });
+            renderScriptList();
+            document.getElementById('msgText').value = '';
+        }
+
+        function deleteScriptItem(index) {
+            chatScript.splice(index, 1);
+            renderScriptList();
+        }
+
+        function renderScriptList() {
+            const scriptList = document.getElementById('scriptList');
+            scriptList.innerHTML = '';
+
+            if (chatScript.length === 0) {
+                scriptList.innerHTML = '<div style="font-size:11px; color:#64748b; text-align:center;">কোনো মেসেজ যোগ করা হয়নি</div>';
+                return;
+            }
+
+            chatScript.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'script-item';
+                const sideText = item.side === 'left' ? 'বামে' : 'ডানে';
+                const voiceText = item.voice === 'female' ? '👧 মেয়ে' : '👦 ছেলে';
+                
+                div.innerHTML = `
+                    <span><b>${index + 1}.</b> [${sideText} | ${voiceText}] (${item.delay/1000}s): ${item.text}</span>
+                    <button class="btn-del" onclick="deleteScriptItem(${index})">ডিলিট</button>
+                `;
+                scriptList.appendChild(div);
+            });
+        }
+
+        function startChatSimulation() {
+            if (chatScript.length === 0) { alert("আগে অন্তত ১টি মেসেজ যোগ করুন!"); return; }
+
+            const chatBody = document.getElementById('chatBody');
+            
+            // চ্যাট বডি রিসেট করে শুধু মাঝের প্রোফাইল রাখা
+            chatBody.innerHTML = `
+                <div class="center-profile">
+                    <img class="center-avatar" src="${partnerImgSrc}" alt="Partner">
+                    <div class="center-name">${document.getElementById('partnerName').value || "My friend"}</div>
+                    <div class="center-sub">You're connected on Messenger</div>
+                </div>
+                <div class="start-loader" id="startLoader">● Chat session starting...</div>
+            `;
+
+            const loader = document.getElementById('startLoader');
+            loader.style.display = 'block';
+
+            window.speechSynthesis.cancel();
+
+            let index = 0;
+
+            setTimeout(() => {
+                loader.style.display = 'none';
+                playNextMessage();
+            }, 1200);
+
+            function playNextMessage() {
+                if (index < chatScript.length) {
+                    const current = chatScript[index];
+
+                    const rowDiv = document.createElement('div');
+                    rowDiv.className = `msg-row ${current.side}`;
+
+                    const avatarImg = document.createElement('img');
+                    avatarImg.className = 'msg-avatar';
+                    avatarImg.src = current.side === 'left' ? partnerImgSrc : myImgSrc;
+
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = `message ${current.side === 'left' ? 'msg-left' : 'msg-right'}`;
+                    msgDiv.innerText = current.text;
+
+                    if (current.side === 'left') {
+                        rowDiv.appendChild(avatarImg);
+                        rowDiv.appendChild(msgDiv);
+                    } else {
+                        rowDiv.appendChild(msgDiv);
+                        rowDiv.appendChild(avatarImg);
+                    }
+
+                    chatBody.appendChild(rowDiv);
+                    chatBody.scrollTop = chatBody.scrollHeight;
+
+                    speakText(current.text, current.voice, () => {
+                        index++;
+                        if (index < chatScript.length) {
+                            setTimeout(playNextMessage, chatScript[index - 1].delay);
+                        }
+                    });
+                }
+            }
+        }
+
+        function speakText(text, voiceGender, callback) {
+            const speech = new SpeechSynthesisUtterance(text);
+            speech.lang = 'bn-BD';
+
+            if (voiceGender === 'female') {
+                speech.pitch = 1.6;
+                speech.rate = 0.9;
+            } else {
+                speech.pitch = 0.5;
+                speech.rate = 0.85;
+            }
+
+            speech.onend = function() { if (callback) callback(); };
+            speech.onerror = function() { if (callback) callback(); };
+
+            window.speechSynthesis.speak(speech);
+        }
+    </script>
+</body>
+</html>
