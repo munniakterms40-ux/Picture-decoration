@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Virtual PC with Fixed Mouse Click System</title>
+  <style>
+    * { box-sizing: border-box; user-select: none; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #080b12;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+    }
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: absolute;
+      z-index: 1;
+    }
+
+    #pc-setup {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 98vw;
+      max-width: 950px;
+      height: 95vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 2;
+    }
+
+    /* Monitor Screen */
+    #monitor-screen {
+      width: 100%;
+      height: 55%;
+      background: rgba(15, 20, 35, 0.9);
+      border: 3px solid #00ffcc;
+      border-radius: 10px;
+      box-shadow: 0 0 25px rgba(0, 255, 204, 0.3);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Mouse Cursor */
+    #virtual-cursor {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="%2300ffcc"><path d="M0 0l16 11.2-7.8.5 4.3 9.3-3.2 1.5-4.2-9.4L0 19z"/></svg>') no-repeat;
+      z-index: 999;
+      pointer-events: none;
+      top: 50%;
+      left: 50%;
+    }
+
+    .top-bar {
+      height: 28px;
+      background: rgba(0, 0, 0, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      font-size: 12px;
+      color: #00ffcc;
+      border-bottom: 1px solid rgba(0, 255, 204, 0.3);
+    }
+
+    .workspace {
+      flex: 1;
+      display: flex;
+    }
+
+    .sidebar {
+      width: 70px;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 10px;
+      gap: 10px;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .app-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(0, 255, 204, 0.3);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .app-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .window { display: none; flex-direction: column; align-items: center; }
+    .window.active { display: flex; }
+
+    canvas {
+      background: #000;
+      border: 2px solid #00ffcc;
+      border-radius: 6px;
+    }
+
+    /* Tic Tac Toe Board */
+    .ttt-board {
+      display: grid;
+      grid-template-columns: repeat(3, 55px);
+      gap: 5px;
+      background: #00ffcc;
+      padding: 5px;
+      border-radius: 6px;
+    }
+    .ttt-cell {
+      width: 55px;
+      height: 55px;
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      color: #fff;
+      cursor: pointer;
+    }
+
+    /* Desk Area */
+    #desk-area {
+      width: 100%;
+      height: 42%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      padding: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* Virtual Keyboard */
+    #virtual-keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: #151821;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+
+    .kb-row {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+    }
+
+    .key {
+      min-width: 24px;
+      height: 26px;
+      background: #252936;
+      border: 1px solid #444;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      color: #eee;
+      box-shadow: 0 2px 0 #111;
+    }
+
+    .key.active {
+      background: #00ffcc;
+      color: #000;
+      transform: translateY(1px);
+    }
+
+    .key-space { width: 120px; }
+
+    /* Trackpad & Mouse */
+    #virtual-mouse-pad {
+      width: 110px;
+      height: 120px;
+      background: #1a1d28;
+      border: 2px solid #00ffcc;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px;
+    }
+
+    #trackpad {
+      width: 100%;
+      height: 75px;
+      background: #0d0f17;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: #00ffcc;
+      font-weight: bold;
+    }
+
+    .mouse-btns {
+      width: 100%;
+      height: 25px;
+      display: flex;
+      gap: 4px;
+    }
+
+    .m-btn {
+      flex: 1;
+      background: #333;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .m-btn:active { background: #00ffcc; color: #000; }
+
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+
+  <div id="pc-setup">
+    <!-- Monitor Screen -->
+    <div id="monitor-screen">
+      <div id="virtual-cursor"></div>
+
+      <div class="top-bar">
+        <span>🖥️ Virtual PC OS</span>
+        <span id="clock">00:00</span>
+      </div>
+      
+      <div class="workspace">
+        <div class="sidebar">
+          <div class="app-icon" id="icon-snake">
+            <span style="font-size:16px;">🐍</span><span>Snake</span>
+          </div>
+          <div class="app-icon" id="icon-flappy">
+            <span style="font-size:16px;">🐦</span><span>Flappy</span>
+          </div>
+          <div class="app-icon" id="icon-ttt">
+            <span style="font-size:16px;">❌⭕</span><span>TicTacToe</span>
+          </div>
+        </div>
+
+        <div class="app-area">
+          <div id="app-welcome" class="window active">
+            <h3 style="color:#00ffcc; margin:5px;">Virtual Computer Active</h3>
+            <p style="font-size:11px; color:#aaa;">মাউস প্যাডে ড্র্যাগ করে কার্সার সরান এবং 'LEFT' বাটনে ক্লিক করুন।</p>
+          </div>
+
+          <!-- Snake -->
+          <div id="app-snake" class="window">
+            <canvas id="snakeCanvas" width="180" height="180"></canvas>
+          </div>
+
+          <!-- Flappy Bird -->
+          <div id="app-flappy" class="window">
+            <canvas id="flappyCanvas" width="180" height="200"></canvas>
+          </div>
+
+          <!-- Tic Tac Toe -->
+          <div id="app-ttt" class="window">
+            <div class="ttt-board">
+              <div class="ttt-cell" id="cell-0"></div>
+              <div class="ttt-cell" id="cell-1"></div>
+              <div class="ttt-cell" id="cell-2"></div>
+              <div class="ttt-cell" id="cell-3"></div>
+              <div class="ttt-cell" id="cell-4"></div>
+              <div class="ttt-cell" id="cell-5"></div>
+              <div class="ttt-cell" id="cell-6"></div>
+              <div class="ttt-cell" id="cell-7"></div>
+              <div class="ttt-cell" id="cell-8"></div>
+            </div>
+            <div id="ttt-msg" style="margin-top:5px; font-size:11px; color:#00ffcc;">Player X's Turn</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desk Setup -->
+    <div id="desk-area">
+      <!-- Full Keyboard -->
+      <div id="virtual-keyboard">
+        <div class="kb-row">
+          <div class="key">Q</div><div class="key">W</div><div class="key">E</div><div class="key">R</div>
+          <div class="key">T</div><div class="key">Y</div><div class="key">U</div><div class="key">I</div>
+          <div class="key">O</div><div class="key">P</div>
+        </div>
+        <div class="kb-row">
+          <div class="key">A</div><div class="key">S</div><div class="key">D</div><div class="key">F</div>
+          <div class="key">G</div><div class="key">H</div><div class="key">J</div><div class="key">K</div>
+          <div class="key">L</div>
+        </div>
+        <div class="kb-row">
+          <div class="key">Z</div><div class="key">X</div><div class="key">C</div><div class="key">V</div>
+          <div class="key">B</div><div class="key">N</div><div class="key">M</div>
+          <div class="key" id="k-Up">▲</div>
+        </div>
+        <div class="kb-row">
+          <div class="key key-space" id="k-Space">SPACE (JUMP)</div>
+          <div class="key" id="k-Left">◀</div>
+          <div class="key" id="k-Down">▼</div>
+          <div class="key" id="k-Right">▶</div>
+        </div>
+      </div>
+
+      <!-- Mouse Pad -->
+      <div id="virtual-mouse-pad">
+        <div id="trackpad">TOUCH PAD</div>
+        <div class="mouse-btns">
+          <div class="m-btn" id="m-left-btn">LEFT</div>
+          <div class="m-btn">RIGHT</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Three.js Background
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.z = 5;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    const geo = new THREE.IcosahedronGeometry(3, 1);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0.1 });
+    const globe = new THREE.Mesh(geo, mat);
+    scene.add(globe);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      globe.rotation.y += 0.002;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+
+    // --- ACCURATE CLICK SYSTEM LOGIC ---
+    const cursor = document.getElementById('virtual-cursor');
+    const screen = document.getElementById('monitor-screen');
+    const trackpad = document.getElementById('trackpad');
+
+    let cursorX = screen.clientWidth / 2;
+    let cursorY = screen.clientHeight / 2;
+
+    function moveCursor(dx, dy) {
+      cursorX = Math.max(0, Math.min(screen.clientWidth - 10, cursorX + dx));
+      cursorY = Math.max(0, Math.min(screen.clientHeight - 10, cursorY + dy));
+      cursor.style.left = cursorX + 'px';
+      cursor.style.top = cursorY + 'px';
+    }
+
+    let lastTouchX = 0, lastTouchY = 0;
+    trackpad.addEventListener('touchstart', (e) => {
+      lastTouchX = e.touches[0].clientX;
+      lastTouchY = e.touches[0].clientY;
+    });
+
+    trackpad.addEventListener('touchmove', (e) => {
+      let dx = (e.touches[0].clientX - lastTouchX) * 1.5;
+      let dy = (e.touches[0].clientY - lastTouchY) * 1.5;
+      moveCursor(dx, dy);
+      lastTouchX = e.touches[0].clientX;
+      lastTouchY = e.touches[0].clientY;
+    });
+
+    // Precise Click Event Handler
+    function triggerCursorClick() {
+      // Calculate exact absolute screen coordinates of virtual cursor
+      let screenRect = screen.getBoundingClientRect();
+      let clickX = screenRect.left + cursorX;
+      let clickY = screenRect.top + cursorY;
+
+      // Temporarily hide cursor so elementFromPoint grabs the element below it
+      cursor.style.display = 'none';
+      let clickedElement = document.elementFromPoint(clickX, clickY);
+      cursor.style.display = 'block';
+
+      if (clickedElement) {
+        // Find if any clickable parent exists
+        let appIcon = clickedElement.closest('.app-icon');
+        let tttCell = clickedElement.closest('.ttt-cell');
+
+        if (appIcon) {
+          if (appIcon.id === 'icon-snake') openApp('snake');
+          if (appIcon.id === 'icon-flappy') openApp('flappy');
+          if (appIcon.id === 'icon-ttt') openApp('ttt');
+        } else if (tttCell) {
+          let idx = tttCell.id.split('-')[1];
+          playTTT(parseInt(idx));
+        }
+      }
+
+      if (activeApp === 'flappy') birdVel = -3.2;
+    }
+
+    document.getElementById('m-left-btn').addEventListener('click', triggerCursorClick);
+    trackpad.addEventListener('click', triggerCursorClick);
+
+    // --- GAME ENGINE ---
+    let activeApp = '';
+    let snakeInterval, flappyReq;
+
+    function openApp(app) {
+      activeApp = app;
+      document.querySelectorAll('.window').forEach(w => w.classList.remove('active'));
+      document.getElementById('app-' + app).classList.add('active');
+      
+      clearInterval(snakeInterval);
+      cancelAnimationFrame(flappyReq);
+
+      if(app === 'snake') startSnake();
+      if(app === 'flappy') startFlappy();
+      if(app === 'ttt') resetTTT();
+    }
+
+    function pressDir(key) {
+      highlightKey('k-' + key);
+      if (activeApp === 'snake') {
+        if (key === 'Left' && snakeDir !== 'RIGHT') snakeDir = 'LEFT';
+        if (key === 'Up' && snakeDir !== 'DOWN') snakeDir = 'UP';
+        if (key === 'Right' && snakeDir !== 'LEFT') snakeDir = 'RIGHT';
+        if (key === 'Down' && snakeDir !== 'UP') snakeDir = 'DOWN';
+      }
+      if (activeApp === 'flappy' && (key === 'Space' || key === 'Up')) {
+        birdVel = -3.2;
+      }
+    }
+
+    function highlightKey(id) {
+      let el = document.getElementById(id);
+      if(el) {
+        el.classList.add('active');
+        setTimeout(() => el.classList.remove('active'), 150);
+      }
+    }
+
+    document.getElementById('k-Up').onclick = () => pressDir('Up');
+    document.getElementById('k-Down').onclick = () => pressDir('Down');
+    document.getElementById('k-Left').onclick = () => pressDir('Left');
+    document.getElementById('k-Right').onclick = () => pressDir('Right');
+    document.getElementById('k-Space').onclick = () => pressDir('Space');
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowUp' || e.key === 'w') pressDir('Up');
+      if (e.key === 'ArrowDown' || e.key === 's') pressDir('Down');
+      if (e.key === 'ArrowLeft' || e.key === 'a') pressDir('Left');
+      if (e.key === 'ArrowRight' || e.key === 'd') pressDir('Right');
+      if (e.code === 'Space') pressDir('Space');
+    });
+
+    // 1. Snake Game
+    const sCanvas = document.getElementById('snakeCanvas');
+    const sCtx = sCanvas.getContext('2d');
+    let snake, snakeDir, food;
+
+    function startSnake() {
+      snake = [{x: 80, y: 80}];
+      snakeDir = 'RIGHT';
+      food = {x: 40, y: 40};
+      snakeInterval = setInterval(updateSnake, 160);
+    }
+
+    function updateSnake() {
+      let head = {...snake[0]};
+      if (snakeDir === 'LEFT') head.x -= 10;
+      if (snakeDir === 'UP') head.y -= 10;
+      if (snakeDir === 'RIGHT') head.x += 10;
+      if (snakeDir === 'DOWN') head.y += 10;
+
+      if(head.x < 0 || head.x >= 180 || head.y < 0 || head.y >= 180) return startSnake();
+
+      snake.unshift(head);
+      if (head.x === food.x && head.y === food.y) {
+        food = { x: Math.floor(Math.random() * 17)*10, y: Math.floor(Math.random() * 17)*10 };
+      } else {
+        snake.pop();
+      }
+
+      sCtx.fillStyle = '#050505';
+      sCtx.fillRect(0,0,180,180);
+      sCtx.fillStyle = '#00ffcc';
+      snake.forEach(p => sCtx.fillRect(p.x, p.y, 9, 9));
+      sCtx.fillStyle = '#ff0055';
+      sCtx.fillRect(food.x, food.y, 9, 9);
+    }
+
+    // 2. Flappy Bird
+    const fCanvas = document.getElementById('flappyCanvas');
+    const fCtx = fCanvas.getContext('2d');
+    let birdY, birdVel, pipes, frame;
+
+    function startFlappy() {
+      birdY = 80; birdVel = 0; pipes = []; frame = 0;
+      updateFlappy();
+    }
+
+    function updateFlappy() {
+      birdVel += 0.15;
+      birdY += birdVel;
+      frame++;
+
+      if (frame % 90 === 0) {
+        let pY = Math.random() * 80 + 20;
+        pipes.push({x: 180, top: pY, bottom: pY + 65});
+      }
+
+      fCtx.fillStyle = '#050505';
+      fCtx.fillRect(0,0,180,200);
+
+      fCtx.fillStyle = '#ffcc00';
+      fCtx.fillRect(30, birdY, 10, 10);
+
+      fCtx.fillStyle = '#00ffcc';
+      for(let i=0; i<pipes.length; i++) {
+        let p = pipes[i];
+        p.x -= 1.2;
+        fCtx.fillRect(p.x, 0, 14, p.top);
+        fCtx.fillRect(p.x, p.bottom, 14, 200 - p.bottom);
+
+        if (30 < p.x+14 && 40 > p.x && (birdY < p.top || birdY+10 > p.bottom)) return startFlappy();
+      }
+
+      if (birdY > 200 || birdY < 0) return startFlappy();
+      flappyReq = requestAnimationFrame(updateFlappy);
+    }
+
+    // 3. Tic Tac Toe
+    let tttBoard = ["", "", "", "", "", "", "", "", ""];
+    let currentPlayer = "X";
+    let tttActive = true;
+
+    function playTTT(i) {
+      if(tttBoard[i] !== "" || !tttActive) return;
+      tttBoard[i] = currentPlayer;
+      document.getElementById('cell-' + i).innerText = currentPlayer;
+      document.getElementById('cell-' + i).style.color = currentPlayer === 'X' ? '#00ffcc' : '#ff0055';
+      
+      if(checkTTT()) {
+        document.getElementById('ttt-msg').innerText = `Player ${currentPlayer} Wins! 🎉`;
+        tttActive = false;
+      } else {
+        currentPlayer = currentPlayer === "X" ? "O" : "X";
+        document.getElementById('ttt-msg').innerText = `Player ${currentPlayer}'s Turn`;
+      }
+    }
+
+    function checkTTT() {
+      const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+      return wins.some(w => tttBoard[w[0]] && tttBoard[w[0]] === tttBoard[w[1]] && tttBoard[w[0]] === tttBoard[w[2]]);
+    }
+
+    function resetTTT() {
+      tttBoard = ["", "", "", "", "", "", "", "", ""];
+      currentPlayer = "X"; tttActive = true;
+      for(let i=0; i<9; i++) document.getElementById('cell-' + i).innerText = "";
+      document.getElementById('ttt-msg').innerText = "Player X's Turn";
+    }
+  </script>
+</body>
+</html>
